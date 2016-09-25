@@ -1,66 +1,46 @@
-with Ada.Integer_Text_IO;
-with Ada.Text_IO;
+with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Unchecked_Conversion;
-with Interfaces;
+with Interfaces; use Interfaces;
 
 procedure Main is
-
-   use Interfaces;
-   use Ada.Text_IO;
-   use Ada.Integer_Text_IO;
-
-   function One_Bit (Index : Natural) return Unsigned_32 is (Shift_Left (1, Index));
+   package Unsigned_32_IO is new Ada.Text_IO.Modular_IO (Unsigned_32);
 
    type Bit_Array_32_Index is range 0 .. 31;
    type Bit_Array_17_Index is range 0 .. 16;
-   type Bit_Array_15_Index is range 0 .. 14;
    type Bit_Array_32 is array (Bit_Array_32_Index) of Boolean with Component_Size => 1, Size => 32;
-   type Bit_Array_17 is array (Bit_Array_17_Index) of Boolean with Component_Size => 1, Size => 17;
-   type Bit_Array_15 is array (Bit_Array_15_Index) of Boolean with Component_Size => 1, Size => 15;
+   type Bit_Array_17 is array (Bit_Array_17_Index) of Boolean with Component_Size => 1, Size => 32;
 
-   type Bit_Box is record
-      B17 : Bit_Array_17;
-      B15 : Bit_Array_15 := (others => False);
-   end record with Pack;
+   generic
+      type I is (<>);
+      type T is array (I) of Boolean;
+   procedure Generic_Put (Item : T; Width : Field; Base : Number_Base);
+   procedure Generic_Put (Item : T; Width : Field; Base : Number_Base) is
+      function Convert_To_Unsigned_32 is new Ada.Unchecked_Conversion (T, Unsigned_32);
+   begin
+      Unsigned_32_IO.Put (Convert_To_Unsigned_32 (Item), Width, Base);
+   end;
 
-   -- For every new array type instantiate a convert function.
-   function Convert is new Ada.Unchecked_Conversion (Unsigned_32, Bit_Array_32);
-   function Convert is new Ada.Unchecked_Conversion (Unsigned_32, Bit_Array_17);
-   function Convert is new Ada.Unchecked_Conversion (Unsigned_32, Bit_Array_15);
-   function Convert is new Ada.Unchecked_Conversion (Unsigned_32, Bit_Box);
+   generic
+      type I is (<>);
+      type T is array (I) of Boolean;
+   function Generic_Shift_Left (Value : Unsigned_32; Amount : Natural) return T;
+   function Generic_Shift_Left (Value : Unsigned_32; Amount : Natural) return T is
+      function Convert_To_Bit_Array_32 is new Ada.Unchecked_Conversion (Unsigned_32, T);
+   begin
+      return Convert_To_Bit_Array_32 (Interfaces.Shift_Left (Value, Amount));
+   end;
 
+   function Shift_Left is new Generic_Shift_Left (Bit_Array_32_Index, Bit_Array_32);
+   function Shift_Left is new Generic_Shift_Left (Bit_Array_17_Index, Bit_Array_17);
+   procedure Put is new Generic_Put (Bit_Array_32_Index, Bit_Array_32);
+   procedure Put is new Generic_Put (Bit_Array_17_Index, Bit_Array_17);
 
    B32 : Bit_Array_32 with Volatile;
-   B : Bit_Box;
-
+   B17 : Bit_Array_17 with Volatile;
 begin
-
-   B32 := Convert (One_Bit (2) or One_Bit (5));
-   for E of B32 loop
-      Put (Boolean'Pos (E), 1);
-   end loop;
+   B32 := Shift_Left (1, 2) or Shift_Left (1, 5);
+   B17 := Shift_Left (1, 2) or Shift_Left (1, 5);
+   Put (B17, 0, 2);
    New_Line;
-
-   B := Convert (One_Bit (16) or One_Bit (17));
-   for E of B.B17 loop
-      Put (Boolean'Pos (E), 1);
-   end loop;
-   New_Line;
-   for E of B.B15 loop
-      Put (Boolean'Pos (E), 1);
-   end loop;
-   New_Line;
-
-   B := Convert (One_Bit (22));
-
-   B.B17 := Convert (One_Bit (16) or One_Bit (17));
-   for E of B.B17 loop
-      Put (Boolean'Pos (E), 1);
-   end loop;
-   New_Line;
-   for E of B.B15 loop
-      Put (Boolean'Pos (E), 1);
-   end loop;
-   New_Line;
-
+   Put (B32, 0, 2);
 end;
